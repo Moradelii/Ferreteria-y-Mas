@@ -1,0 +1,6 @@
+{
+  "name": "Ferretería & Más",
+  "description": "Plataforma e-commerce y cotizador profesional de madera con retiro exprés y flete en La Ceiba, Honduras.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
