@@ -24,6 +24,7 @@ import {
   sampleQuotes 
 } from '../data/initialData';
 import { calculateCartSummary, calculateItemTotal } from './pricingEngine';
+import { safeGetStorage, safeSetStorage, sanitizeImagePath } from './storageHelper';
 
 interface AppContextType {
   // Navigation & View
@@ -114,26 +115,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Products
   const [products, setProducts] = useState<Product[]>(() => {
-    const saved = localStorage.getItem('fym_products');
-    return saved ? JSON.parse(saved) : initialProducts;
+    const loaded = safeGetStorage<Product[]>('fym_products', initialProducts);
+    return loaded.map(p => ({
+      ...p,
+      imageUrl: sanitizeImagePath(p.imageUrl)
+    }));
   });
 
   // Services & Config
   const [services] = useState<AdditionalService[]>(initialServices);
   const [deliveryZones, setDeliveryZones] = useState<DeliveryZone[]>(() => {
-    const saved = localStorage.getItem('fym_zones');
-    return saved ? JSON.parse(saved) : initialDeliveryZones;
+    return safeGetStorage<DeliveryZone[]>('fym_zones', initialDeliveryZones);
   });
   const [bankAccounts] = useState<BankAccount[]>(initialBankAccounts);
   const [businessConfig, setBusinessConfig] = useState<BusinessConfig>(() => {
-    const saved = localStorage.getItem('fym_config');
-    return saved ? JSON.parse(saved) : initialBusinessConfig;
+    return safeGetStorage<BusinessConfig>('fym_config', initialBusinessConfig);
   });
 
   // Cart
   const [cart, setCart] = useState<CartItem[]>(() => {
-    const saved = localStorage.getItem('fym_cart');
-    return saved ? JSON.parse(saved) : [];
+    return safeGetStorage<CartItem[]>('fym_cart', []);
   });
   const [isCartOpen, setIsCartOpen] = useState(false);
 
@@ -144,12 +145,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Orders & Quotes
   const [orders, setOrders] = useState<Order[]>(() => {
-    const saved = localStorage.getItem('fym_orders');
-    return saved ? JSON.parse(saved) : sampleOrders;
+    return safeGetStorage<Order[]>('fym_orders', sampleOrders);
   });
   const [quotes, setQuotes] = useState<Quote[]>(() => {
-    const saved = localStorage.getItem('fym_quotes');
-    return saved ? JSON.parse(saved) : sampleQuotes;
+    return safeGetStorage<Quote[]>('fym_quotes', sampleQuotes);
   });
 
   // Modals
@@ -172,29 +171,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }, 4000);
   };
 
-  // Sync to localStorage
+  // Sync to localStorage with quota protection
   useEffect(() => {
-    localStorage.setItem('fym_products', JSON.stringify(products));
+    safeSetStorage('fym_products', products);
   }, [products]);
 
   useEffect(() => {
-    localStorage.setItem('fym_cart', JSON.stringify(cart));
+    safeSetStorage('fym_cart', cart);
   }, [cart]);
 
   useEffect(() => {
-    localStorage.setItem('fym_orders', JSON.stringify(orders));
+    safeSetStorage('fym_orders', orders);
   }, [orders]);
 
   useEffect(() => {
-    localStorage.setItem('fym_quotes', JSON.stringify(quotes));
+    safeSetStorage('fym_quotes', quotes);
   }, [quotes]);
 
   useEffect(() => {
-    localStorage.setItem('fym_zones', JSON.stringify(deliveryZones));
+    safeSetStorage('fym_zones', deliveryZones);
   }, [deliveryZones]);
 
   useEffect(() => {
-    localStorage.setItem('fym_config', JSON.stringify(businessConfig));
+    safeSetStorage('fym_config', businessConfig);
   }, [businessConfig]);
 
   // Cart operations
@@ -268,14 +267,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const saveProduct = (product: Product) => {
+    const sanitizedProduct: Product = {
+      ...product,
+      imageUrl: sanitizeImagePath(product.imageUrl)
+    };
     setProducts(prev => {
-      const exists = prev.some(p => p.id === product.id);
+      const exists = prev.some(p => p.id === sanitizedProduct.id);
       if (exists) {
-        return prev.map(p => p.id === product.id ? product : p);
+        return prev.map(p => p.id === sanitizedProduct.id ? sanitizedProduct : p);
       }
-      return [product, ...prev];
+      return [sanitizedProduct, ...prev];
     });
-    showToast(`Producto ${product.name} guardado correctamente`, 'success');
+    showToast(`Producto ${sanitizedProduct.name} guardado correctamente`, 'success');
   };
 
   const deleteProduct = (productId: string) => {

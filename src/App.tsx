@@ -108,7 +108,7 @@ const AboutSection: React.FC = () => {
 };
 
 const OffersBanner: React.FC = () => {
-  const { setSelectedCategory, setActiveNavTab } = useApp();
+  const { setSelectedCategoryFilter, setActiveNavTab } = useApp();
 
   return (
     <div className="bg-linear-to-r from-amber-600 via-amber-500 to-amber-600 text-slate-950 py-3 px-4 border-y border-amber-400 font-semibold text-xs">

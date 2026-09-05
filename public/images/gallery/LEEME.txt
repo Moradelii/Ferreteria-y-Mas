@@ -1,0 +1,7 @@
+Carpeta para imágenes del catálogo de Ferretería & Maderas La Ceiba.
+Coloca aquí tus fotos (ejemplo: pino-2x4.jpg, caoba.jpg, viga.jpg).
+
+Para usarlas en el Catálogo de Productos o en el CMS, ingresa la ruta:
+/images/gallery/nombre-de-tu-foto.jpg
+
+Nota: En aplicaciones web se usa la diagonal normal (/) y no se incluye la palabra 'public' en la URL.

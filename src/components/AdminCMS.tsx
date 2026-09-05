@@ -26,8 +26,13 @@ import {
   DollarSign,
   Send,
   MessageCircle,
-  Warehouse
+  Warehouse,
+  Image as ImageIcon,
+  Upload,
+  Loader2,
+  Check
 } from 'lucide-react';
+import { compressImageFile, sanitizeImagePath } from '../lib/storageHelper';
 
 export const AdminCMS: React.FC = () => {
   const { 
@@ -58,6 +63,8 @@ export const AdminCMS: React.FC = () => {
   // Edit / Add product modal
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isCreatingNew, setIsCreatingNew] = useState(false);
+  const [isCompressingImage, setIsCompressingImage] = useState(false);
+  const [imageUploadNotice, setImageUploadNotice] = useState<string | null>(null);
 
   // Financial KPI calculations
   const totalSalesRevenue = orders
@@ -83,9 +90,14 @@ export const AdminCMS: React.FC = () => {
   const handleSaveProductForm = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingProduct) return;
-    saveProduct(editingProduct);
+    const sanitized: Product = {
+      ...editingProduct,
+      imageUrl: sanitizeImagePath(editingProduct.imageUrl)
+    };
+    saveProduct(sanitized);
     setEditingProduct(null);
     setIsCreatingNew(false);
+    setImageUploadNotice(null);
   };
 
   return (
@@ -496,8 +508,26 @@ export const AdminCMS: React.FC = () => {
                       .map((p) => (
                         <tr key={p.id} className="hover:bg-slate-800/40 transition-colors">
                           <td className="p-3.5">
-                            <div className="font-semibold text-white">{p.name}</div>
-                            <span className="font-mono text-[11px] text-amber-400 font-medium">{p.sku}</span>
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-lg bg-slate-900 border border-slate-800 overflow-hidden shrink-0 flex items-center justify-center">
+                                {p.imageUrl ? (
+                                  <img 
+                                    src={p.imageUrl} 
+                                    alt={p.name} 
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1546484396-fb3fc6f95f98?auto=format&fit=crop&w=800&q=80';
+                                    }}
+                                  />
+                                ) : (
+                                  <ImageIcon className="w-4 h-4 text-slate-600" />
+                                )}
+                              </div>
+                              <div>
+                                <div className="font-semibold text-white">{p.name}</div>
+                                <span className="font-mono text-[11px] text-amber-400 font-medium">{p.sku}</span>
+                              </div>
+                            </div>
                           </td>
                           <td className="p-3.5">
                             <span className="capitalize text-slate-300">{p.species || p.category}</span>
@@ -968,6 +998,138 @@ export const AdminCMS: React.FC = () => {
                       onChange={(e) => setEditingProduct({ ...editingProduct, dimensionString: e.target.value })}
                       className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white font-mono focus:outline-none focus:ring-1 focus:ring-amber-500"
                     />
+                  </div>
+                </div>
+
+                {/* Product Image Section */}
+                <div className="p-3 bg-slate-950 border border-amber-500/40 rounded-lg space-y-2.5 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <label className="text-amber-300 font-semibold flex items-center gap-1.5">
+                      <ImageIcon className="w-4 h-4 text-amber-400" />
+                      Fotografía del Producto / Material
+                    </label>
+                    <span className="text-[10px] text-amber-400/80 font-mono">JPG, PNG, WebP o Ruta</span>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    {/* Thumbnail preview */}
+                    <div className="w-16 h-16 rounded-lg bg-slate-900 border border-slate-700 overflow-hidden shrink-0 flex items-center justify-center relative shadow-inner">
+                      {editingProduct.imageUrl ? (
+                        <img 
+                          src={editingProduct.imageUrl} 
+                          alt="Vista previa" 
+                          className="w-full h-full object-cover" 
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1546484396-fb3fc6f95f98?auto=format&fit=crop&w=800&q=80';
+                          }}
+                        />
+                      ) : (
+                        <ImageIcon className="w-6 h-6 text-slate-600" />
+                      )}
+                    </div>
+
+                    <div className="flex-1 space-y-1.5">
+                      <input
+                        type="text"
+                        placeholder="/images/gallery/mi-foto.jpg o https://..."
+                        value={editingProduct.imageUrl || ''}
+                        onChange={(e) => {
+                          const sanitized = sanitizeImagePath(e.target.value);
+                          setEditingProduct({ ...editingProduct, imageUrl: sanitized });
+                        }}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-white font-mono text-[11px] focus:outline-none focus:ring-1 focus:ring-amber-500"
+                      />
+                      
+                      <div className="flex flex-wrap items-center gap-2">
+                        <label className={`px-2.5 py-1 rounded text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-colors ${
+                          isCompressingImage 
+                            ? 'bg-amber-600 text-white cursor-wait' 
+                            : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
+                        }`}>
+                          {isCompressingImage ? (
+                            <>
+                              <Loader2 className="w-3 h-3 animate-spin text-amber-300" />
+                              Optimizando foto...
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="w-3 h-3 text-amber-400" />
+                              Subir desde mi computadora o teléfono
+                            </>
+                          )}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            disabled={isCompressingImage}
+                            className="hidden"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                setIsCompressingImage(true);
+                                setImageUploadNotice('Optimizando imagen para carga ultrarrápida...');
+                                try {
+                                  const compressedDataUrl = await compressImageFile(file);
+                                  setEditingProduct({ ...editingProduct, imageUrl: compressedDataUrl });
+                                  setImageUploadNotice('✓ Imagen optimizada con éxito para almacenamiento seguro');
+                                } catch (err: any) {
+                                  console.error('Error optimizando imagen:', err);
+                                  setImageUploadNotice(null);
+                                } finally {
+                                  setIsCompressingImage(false);
+                                }
+                              }
+                            }}
+                          />
+                        </label>
+
+                        {imageUploadNotice && (
+                          <span className="text-[10px] text-emerald-400 flex items-center gap-1">
+                            <Check className="w-3 h-3 text-emerald-400" />
+                            {imageUploadNotice}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Clarification guide about public/ vs web URL */}
+                  <div className="p-2 bg-slate-900/90 rounded border border-slate-800 text-[10px] text-slate-400 space-y-1">
+                    <p>
+                      <strong className="text-amber-400 font-medium">¿Tienes fotos en tu computadora dentro del proyecto?</strong>
+                    </p>
+                    <p className="leading-relaxed">
+                      Si guardas archivos en <code className="text-slate-300 bg-slate-950 px-1 py-0.5 rounded font-mono">public/images/gallery/mi-foto.jpg</code>, en la casilla de arriba escribe únicamente <code className="text-amber-300 bg-slate-950 px-1 py-0.5 rounded font-mono font-bold">/images/gallery/mi-foto.jpg</code>.
+                    </p>
+                    <p className="text-slate-500 text-[9px]">
+                      (Las páginas web no deben incluir la palabra "public" ni diagonales invertidas \)
+                    </p>
+                  </div>
+
+                  {/* Quick Preset Images */}
+                  <div className="pt-2 border-t border-slate-800/80">
+                    <span className="text-[10px] text-slate-400 block mb-1">Galería Rápida de Maderas y Materiales:</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        { label: 'Pino Tratado', url: 'https://images.unsplash.com/photo-1546484396-fb3fc6f95f98?auto=format&fit=crop&w=800&q=80' },
+                        { label: 'Vigas / Cuartones', url: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=800&q=80' },
+                        { label: 'Caoba / Duras', url: 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?auto=format&fit=crop&w=800&q=80' },
+                        { label: 'Plywood / Tableros', url: 'https://images.unsplash.com/photo-1534349762230-e0cadf78f5da?auto=format&fit=crop&w=800&q=80' },
+                        { label: 'Tornillería / Fijación', url: 'https://images.unsplash.com/photo-1581783342308-f792dbdd27c5?auto=format&fit=crop&w=800&q=80' },
+                        { label: 'Herramientas', url: 'https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=800&q=80' },
+                      ].map((preset) => (
+                        <button
+                          key={preset.label}
+                          type="button"
+                          onClick={() => {
+                            setEditingProduct({ ...editingProduct, imageUrl: preset.url });
+                            setImageUploadNotice(null);
+                          }}
+                          className="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-[10px] text-slate-300 hover:text-amber-400 border border-slate-800 transition-colors cursor-pointer"
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
 

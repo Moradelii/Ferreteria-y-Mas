@@ -16,7 +16,11 @@ import {
   ArrowUpDown 
 } from 'lucide-react';
 
-export const Catalog: React.FC = () => {
+interface CatalogProps {
+  defaultCategory?: string;
+}
+
+export const Catalog: React.FC<CatalogProps> = ({ defaultCategory }) => {
   const { 
     products, 
     searchQuery, 
@@ -27,6 +31,8 @@ export const Catalog: React.FC = () => {
     setInspectProduct,
     setIsCartOpen
   } = useApp();
+
+  const activeCategory = defaultCategory || selectedCategoryFilter;
 
   const [sortBy, setSortBy] = useState<'featured' | 'price_asc' | 'price_desc' | 'name'>('featured');
   const [speciesFilter, setSpeciesFilter] = useState<string>('all');
@@ -50,10 +56,10 @@ export const Catalog: React.FC = () => {
       }
 
       // Category
-      if (selectedCategoryFilter !== 'all') {
-        if (selectedCategoryFilter === 'madera_all') {
+      if (activeCategory !== 'all') {
+        if (activeCategory === 'madera_all') {
           if (!['madera', 'madera_dimensionada'].includes(product.category)) return false;
-        } else if (product.category !== selectedCategoryFilter) {
+        } else if (product.category !== activeCategory) {
           return false;
         }
       }
